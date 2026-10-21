@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PhD · Calibration sous censure</title>
+  <meta name="description" content="Expérience 01 : données synthétiques, calibration séquentielle et censure indépendante.">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+<header><a class="brand" href="./"><span class="mark">P</span> PhD <span class="slash">/</span> Expériences</a><span class="header-note">01 · Survie à horizon fixe</span></header>
+<div class="layout">
+<aside>
+  <div class="eyebrow">PROTOCOLE</div><h2>Paramètres</h2><p class="muted">Un modèle calibré. Une censure indépendante. Quatre comparaisons.</p>
+  <form id="parameters">
+    <label for="n">Patients évalués <span>n</span></label><input id="n" name="n" type="number" min="100" max="10000" step="100" value="3000" required>
+    <label for="history">Patients historiques <span>m</span></label><input id="history" name="history" type="number" min="20" max="10000" step="1" value="120" required>
+    <label for="g">Non-censure à 12 mois <span>G⋆</span></label><input id="g" name="g" type="number" min="0.1" max="1" step="0.01" value="0.70" required>
+    <p class="hint">G⋆ = P(C &gt; 12). Ce n'est pas la proportion de statuts connus.</p>
+    <label for="seed">Graine aléatoire</label><input id="seed" name="seed" type="number" min="0" max="4294967295" step="1" value="20261021" required>
+    <label for="repetitions">Répétitions Monte-Carlo <span>B</span></label><input id="repetitions" name="repetitions" type="number" min="20" max="2000" step="1" value="500" required>
+    <button class="primary" id="run" disabled type="submit">Calculer la trajectoire <span>↗</span></button>
+    <button class="secondary" id="reset" type="button">Réinitialiser les paramètres</button>
+  </form>
+  <div class="fixed"><span>Horizon <b>12 mois</b></span><span>Niveau par méthode <b>α = 5 %</b></span><span>Seuil d'alerte <b>E ≥ 20</b></span></div>
+  <p class="status" id="status" role="status" aria-live="polite">Chargement du moteur Python…</p>
+  <div class="error" id="error" role="alert" hidden></div>
+  <p class="hint">Calcul local dans le navigateur. La première ouverture télécharge Python et NumPy.</p>
+  <a href="./experiment.py" download>Ouvrir le code de l'expérience ↓</a>
+  <br><a href="https://github.com/Achraf-Saidi/phd-dashboard/archive/refs/heads/main.zip">Télécharger le dashboard ↓</a>
+</aside>
+<main>
+  <div class="eyebrow">EXPÉRIENCE 01</div><h1>Calibration sous censure</h1>
+  <p class="intro">Que devient une surveillance séquentielle quand une partie des suivis est interrompue ?</p>
+  <div class="notice"><span class="dot"></span><div><strong>Modèle calibré par construction</strong><span>P = σ(0,5 + 1,2 X) · T | X ∼ Exp(−log(P) / 12) · C indépendant de (X, T)</span></div></div>
+  <div id="stale" class="warning" hidden>Paramètres modifiés. Les résultats affichés correspondent au dernier calcul.</div>
+  <section aria-labelledby="trajectory-title">
+    <div class="section-head"><div><div class="eyebrow">UNE TRAJECTOIRE</div><h2 id="trajectory-title">Suivre les contributions</h2></div><button id="export" class="text-button" disabled>Exporter les résultats ↓</button></div>
+    <p id="run-description" class="muted">Une contribution par patient, dans l'ordre d'inclusion, à son horizon de 12 mois.</p>
+    <div class="stats"><div><span>Patients évalués</span><strong id="stat-n">—</strong></div><div><span>G⋆ · connu en simulation</span><strong id="stat-g">—</strong></div><div><span>Ĝ · Kaplan–Meier inversé</span><strong id="stat-ghat">—</strong></div><div><span>Statut à 12 mois inconnu</span><strong id="stat-unknown">—</strong></div></div>
+    <div class="observation"><div id="observation-bar" class="observation-bar"></div><p id="observation-text">Les événements observés avant 12 mois sont des statuts connus, même si C ≤ 12.</p></div>
+    <div class="table-wrap"><table><thead><tr><th>Méthode</th><th>Score moyen final</th><th>Espérance conditionnelle moyenne</th><th>Première alerte</th></tr></thead><tbody id="method-table"><tr><td colspan="4">Calcul en attente</td></tr></tbody></table></div>
+    <div class="plot-grid">
+      <article class="panel"><h3>Moyenne cumulée des scores</h3><p>Un score négatif indique une survie estimée inférieure à la prédiction. Les lignes pointillées donnent les espérances conditionnelles.</p><div class="plot" id="means" aria-label="Moyennes cumulées des quatre scores"></div></article>
+      <article class="panel"><h3>Surveillance séquentielle</h3><p>Premier franchissement du seuil 20. Une alerte reste comptée si la courbe redescend. La courbe naïve, très dominante, s'active dans la légende.</p><div class="plot" id="eprocess" aria-label="Processus séquentiels en échelle log10 et seuil d'alerte"></div></article>
+    </div>
+    <details><summary>Calibration descriptive par groupes de prédiction</summary><p>Six groupes de même effectif, triés selon P. Ces moyennes pondérées peuvent dépasser 1 ; elles ne sont pas des probabilités individuelles. Pas de test supplémentaire ici.</p><div class="plot" id="calibration"></div></details>
+  </section>
+  <section aria-labelledby="mc-title">
+    <div class="section-head"><div><div class="eyebrow">RÉPÉTITIONS INDÉPENDANTES</div><h2 id="mc-title">Mesurer les fausses alertes</h2></div><button class="primary" id="repeat" disabled>Lancer les répétitions</button></div>
+    <p class="muted">À chaque répétition, on renouvelle l'historique et les patients. Ĝ reste ensuite figé pendant tout le suivi. Toute alerte est fausse dans ce scénario calibré.</p>
+    <progress id="progress" max="1" value="0" hidden aria-label="Avancement des répétitions"></progress>
+    <div id="mc-empty" class="empty">Lance les répétitions pour mesurer la fréquence d'au moins une alerte par trajectoire.</div>
+    <div id="mc-results" hidden><p class="muted" id="mc-description"></p><div class="plot" id="rates"></div><div class="table-wrap"><table><thead><tr><th>Méthode</th><th>Trajectoires avec alerte</th><th>Fréquence</th><th>IC Monte-Carlo 95 %</th></tr></thead><tbody id="mc-table"></tbody></table></div><p id="mc-unavailable" class="warning" hidden></p></div>
+    <p class="footnote">La borne de 5 % concerne chaque méthode valide séparément, sur toute sa trajectoire. Les barres sont des intervalles de Wilson décrivant l'incertitude Monte-Carlo ; ce ne sont pas des bornes séquentielles.</p>
+  </section>
+  <details class="protocol"><summary>Formules et périmètre de l'expérience</summary>
+    <div class="protocol-grid"><div><h3>Ce qui est observé</h3><p>X ∼ U(−1, 1), Y = 1{T &gt; 12}, R = 1{min(T, C) &gt; 12}. Le statut Y reste inconnu si la censure précède l'événement et l'horizon.</p><p>L'historique indépendant sert uniquement à estimer Ĝ. Aucun patient de la surveillance n'entre dans cette estimation.</p><p>Chaque patient contribue à son horizon, même s'il a été censuré. On ne trie pas les patients selon leur événement ou leur censure.</p></div>
+    <div><h3>Les quatre scores</h3><p>Complet : Y − P<br>Naïf : R − P<br>Oracle : R / G⋆ − P<br>Estimé : R / Ĝ − P</p><p>Conditionnellement à X et à l'historique, leurs espérances sont respectivement 0, P(G⋆ − 1), 0 et P(G⋆ / Ĝ − 1).</p></div>
+    <div><h3>Le test utilisé</h3><p>Eₙ = moyenne des produits ∏ᵢ(1 + b uᵢ), avec b ∈ {±0,05 ; ±0,1 ; ±0,2 ; ±0,4 ; ±0,8}.</p><p>u = Y − P pour les données complètes ; u = R − gP pour les autres (g = 1, G⋆ ou Ĝ). Si E[u | passé, X, historique] = 0, ces produits sont des martingales positives et P(sup Eₙ ≥ 20) ≤ 5 %.</p><p>Cette garantie vaut pour les données complètes et l'oracle dans ce générateur. Elle ne se transmet pas automatiquement aux versions naïve et estimée.</p></div>
+    <div><h3>Ce que ce test ne conclut pas</h3><p>Il sonde un défaut moyen de calibration, pas toutes les erreurs possibles selon X. Une absence d'alerte ne prouve pas la calibration.</p><p>Pas d'apprentissage de modèle, de dérive, de recalibration ou d'arrivées asynchrones ici. La filtration utilisée ne révèle pas les suivis partiels des patients à venir.</p><p>Si Ĝ n'est pas estimable à l'horizon, la méthode est indiquée indisponible. Aucune valeur n'est remplacée ou tronquée silencieusement.</p></div></div>
+    <p class="footnote">Référence de contexte : <a href="https://doi.org/10.1214/22-AOAS1697" target="_blank" rel="noreferrer">Arnold, Henzi & Ziegel (2023)</a>. Le test à mises fixes ci-dessus est un choix élémentaire pour cette expérience, pas une reproduction des tests de leur article.</p>
+  </details>
+  <footer>Expérience 01 · Données synthétiques uniquement <span id="runtime"></span></footer>
+</main></div>
+</body></html>
