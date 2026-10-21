@@ -1,5 +1,7 @@
 # PhD dashboard
 
+[Ouvrir le dashboard](https://achraf-saidi.github.io/phd-dashboard/)
+
 Calibration séquentielle des prédictions de survie sous censure.
 Données synthétiques, modèle calibré par construction et quatre méthodes comparées.
 
